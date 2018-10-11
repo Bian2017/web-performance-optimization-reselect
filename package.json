@@ -1,0 +1,36 @@
+{
+  "name": "web-performance-optimization-reselect",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "webpack --config webpack.config.js --watch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Bian2017/web-performance-optimization-reselect.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Bian2017/web-performance-optimization-reselect/issues"
+  },
+  "homepage": "https://github.com/Bian2017/web-performance-optimization-reselect#readme",
+  "dependencies": {
+    "react": "^16.5.2",
+    "react-dom": "^16.5.2",
+    "react-redux": "^5.0.7",
+    "redux": "^4.0.0",
+    "redux-actions": "^2.6.1"
+  },
+  "devDependencies": {
+    "babel-core": "^6.26.3",
+    "babel-loader": "^7.1.5",
+    "babel-preset-env": "^1.7.0",
+    "babel-preset-es2015-ie": "^6.7.0",
+    "babel-preset-react": "^6.24.1",
+    "babel-preset-stage-0": "^6.24.1",
+    "css-loader": "^1.0.0",
+    "style-loader": "^0.23.1"
+  }
+}
