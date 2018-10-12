@@ -1,33 +1,34 @@
 import React, { Component } from 'react'
 import { createAction } from 'redux-actions'
-
-import * as actionTypes from './constants'
-
+import { connect } from 'react-redux'
+import * as actionTypes from './store/constants'
 import CounterView1 from './CounterView1'
 import CounterView2 from './CounterView2'
-import { getStore } from './store/reducers'
 
 class App extends Component {
   buttonEvent_1() {
-    let store = getStore()
+    const { store, dispatch } = this.props
     if (!store) {
       console.log('buttonEvent_1')
       return
     }
-    store.dispatch(createAction(actionTypes.DEMO_ACTION_1)({}))
+
+    dispatch(createAction(actionTypes.DEMO_ACTION_1)({}))
   }
 
   buttonEvent_2() {
-    let store = getStore()
+    const { store, dispatch } = this.props
     if (!store) {
       console.log('buttonEvent_2')
       return
     }
-    store.dispatch(createAction(actionTypes.DEMO_ACTION_2)({}))
+    
+    dispatch(createAction(actionTypes.DEMO_ACTION_2)({}))
   }
 
   render() {
     console.log('......App props:', this.props)
+
     return (
       <div style={{ marginTop: 20, marginLeft: 20 }}>
         <button onClick={() => this.buttonEvent_1()}>
@@ -44,8 +45,12 @@ class App extends Component {
       </div>
     )
   }
-
-
 }
 
-export default App;
+const mapStateToProps = (state) => {
+  return {
+    store: state
+  }
+}
+
+export default connect(mapStateToProps)(App);

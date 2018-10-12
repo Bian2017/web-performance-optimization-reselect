@@ -1,6 +1,6 @@
-import { reducer as demo1Reducer } from './demoReducer_1'
-import { reducer as demo2Reducer } from './demoReducer_2'
-import { combineReducers } from 'redux'
+import demo1Reducer from './demoReducer_1'
+import demo2Reducer from './demoReducer_2'
+import { createStore, combineReducers } from 'redux'
 
 const reducer = combineReducers({
   demo_1: demo1Reducer,

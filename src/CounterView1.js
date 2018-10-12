@@ -5,7 +5,7 @@ import { bindActionCreators } from 'redux'
 class CounterView1 extends Component {
   render () {
     console.log('......CounterView1 props:', this.props)
-    
+
     return (
       <div style={{
         backgroundColor: '#00ff00',
