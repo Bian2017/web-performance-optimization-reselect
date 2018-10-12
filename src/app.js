@@ -13,7 +13,7 @@ class App extends Component {
       return
     }
 
-    dispatch(createAction(actionTypes.DEMO_ACTION_1)({}))
+    dispatch(createAction(actionTypes.DEMO_ACTION_A)({}))
   }
 
   buttonEvent_2() {
@@ -23,7 +23,7 @@ class App extends Component {
       return
     }
     
-    dispatch(createAction(actionTypes.DEMO_ACTION_2)({}))
+    dispatch(createAction(actionTypes.DEMO_ACTION_B)({}))
   }
 
   render() {
@@ -32,13 +32,13 @@ class App extends Component {
     return (
       <div style={{ marginTop: 20, marginLeft: 20 }}>
         <button onClick={() => this.buttonEvent_1()}>
-          Button 1
+          Button A
         </button>
         <button
           onClick={() => this.buttonEvent_2()}
           style={{ marginLeft: 20 }}
         >
-          Button 2
+          Button B
         </button>
         <CounterView1 />
         <CounterView2 />

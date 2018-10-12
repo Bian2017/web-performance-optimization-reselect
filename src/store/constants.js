@@ -2,5 +2,5 @@
  * 常量
  */
 
-export const DEMO_ACTION_1 = 'DEMO/ACTION_1' 
-export const DEMO_ACTION_2 = 'DEMO/ACTION_2' 
+export const DEMO_ACTION_A = 'DEMO/ACTION_A' 
+export const DEMO_ACTION_B = 'DEMO/ACTION_B' 

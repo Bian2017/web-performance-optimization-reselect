@@ -4,7 +4,7 @@ import { bindActionCreators } from 'redux'
 
 class CounterView2 extends Component {
   render() {
-    console.log('......CounterView2 props:', this.props)
+    console.log('......组件B props:', this.props)
 
     return (
       <div style={{
@@ -12,18 +12,18 @@ class CounterView2 extends Component {
         width: 300,
         height: 100
       }}>
-        <h1 className="App-title">CounterView 2: {this.props.demoData.counter}</h1>
+        <h1 className="App-title">组件 B: {this.props.demoData.counter}</h1>
       </div>
     )
   }
 }
 
 const mapStateToProps = (state) => {
-  let demo_2 = Object.assign({}, state.demo_2)
-  if (!demo_2.counter) {
-    demo_2.counter = 0
+  let demo_B = Object.assign({}, state.demo_B)
+  if (!demo_B.counter) {
+    demo_B.counter = 0
   }
-  return { demoData: demo_2 }
+  return { demoData: demo_B }
 }
 
 const mapDispatchToPeops = (dispatch) => {

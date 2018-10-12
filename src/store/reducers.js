@@ -3,8 +3,8 @@ import demo2Reducer from './demoReducer_2'
 import { createStore, combineReducers } from 'redux'
 
 const reducer = combineReducers({
-  demo_1: demo1Reducer,
-  demo_2: demo2Reducer
+  demo_A: demo1Reducer,
+  demo_B: demo2Reducer
 })
 
 export const getStore = () => {
