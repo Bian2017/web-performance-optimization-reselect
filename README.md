@@ -2,7 +2,7 @@ Reselect库
 
 ---
 
-非原创，参照[关于react, redux, react-redux和reselect的一些思考](https://zhuanlan.zhihu.com/p/33985606)文章进行的工程化实践。
+本文章非原创，大部分参照[关于react, redux, react-redux和reselect的一些思考](https://zhuanlan.zhihu.com/p/33985606)文章来进行工程化实践。
 
 ## 一、搭建环境
 
@@ -18,7 +18,7 @@ Reselect库
 
 3. 在浏览器打开public目录下的index.html。
 
-## 二、遇到的问题
+## 二、遇到的问题
 
 ### 1. 场景描述
 
@@ -34,7 +34,7 @@ Reselect库
 
 ### 3. 实际结果
 
-运行上述代码，当点击Button A时，组件A显示最新的counter值，组件B显示的值不变，符合预期；但是通过控制台输出发现，组件A和组件B都重新渲染了，与预期相矛盾，如下图所示：
+运行上述代码，当点击Button A时，组件A显示最新的counter值，组件B显示的值不变，符合预期；但是通过控制台输出发现，组件A和组件B都重新渲染了，与预期相矛盾，如下图所示：
 
 ![](https://raw.githubusercontent.com/Bian2017/web-performance-optimization-reselect/daily/0.0.1/docs/img/stillRender.png)
 
