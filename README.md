@@ -58,72 +58,72 @@ export default function connect(mapStateToProps, mapDispatchToProps, mergeProps,
   return function wrapWithConnect(WrappedComponent) {
     // ...
     class Connect extends Component {
-       // ...
-       trySubscribe() {
-         if (shouldSubscribe && !this.unsubscribe) {
-           this.unsubscribe = this.store.subscribe(this.handleChange.bind(this))
-           this.handleChange()
-         }
-       }
+      // ...
+      trySubscribe() {
+        if (shouldSubscribe && !this.unsubscribe) {
+          this.unsubscribe = this.store.subscribe(this.handleChange.bind(this))
+          this.handleChange()
+        }
+      }
 
-       tryUnsubscribe() {
-         if (this.unsubscribe) {
-           this.unsubscribe()
-           this.unsubscribe = null
-         }
-       }
+      tryUnsubscribe() {
+        if (this.unsubscribe) {
+          this.unsubscribe()
+          this.unsubscribe = null
+        }
+      }
 
-       componentDidMount() {
-         this.trySubscribe()
-       }
+      componentDidMount() {
+        this.trySubscribe()
+      }
 
-       componentWillUnmount() {
-          this.tryUnsubscribe()
-         // ...
-       }
+      componentWillUnmount() {
+        this.tryUnsubscribe()
+        // ...
+      }
 
-       handleChange() {
-         if (!this.unsubscribe) { return }
+      handleChange() {
+        if (!this.unsubscribe) { return }
 
-         const storeState = this.store.getState()
-         const prevStoreState = this.state.storeState
-         if (pure && prevStoreState === storeState) {
-           return
-         }
-         if (pure && !this.doStatePropsDependOnOwnProps) {
-           // ...
-         }
+        const storeState = this.store.getState()
+        const prevStoreState = this.state.storeState
+        if (pure && prevStoreState === storeState) {
+          return
+        }
+        if (pure && !this.doStatePropsDependOnOwnProps) {
+          // ...
+        }
 
-         this.hasStoreStateChanged = true
-         this.setState({ storeState })        // 设置setState导致重新渲染Connect HOC
-       }
-       // ...
-     }
+        this.hasStoreStateChanged = true
+        this.setState({ storeState })        // 设置setState导致重新渲染Connect HOC
+      }
+      // ...
+    }
 
-     render() {
-       const {
-         // ...
-         renderedElement
-       } = this
+    render() {
+      const { renderedElement } = this
 
-       // ...
-       if (!haveMergedPropsChanged && renderedElement) {
-         return renderedElement
-       }
-       if (withRef) {
-         this.renderedElement = createElement(WrappedComponent, {
-           ...this.mergedProps,
-           ref: 'wrappedInstance'
-         })
-       } else {
-         this.renderedElement = createElement(WrappedComponent,
-           this.mergedProps
-         )
-       }
-       return this.renderedElement
-     }
-     // ...
-     return hoistStatics(Connect, WrappedComponent)
+      // haveMergedPropsChanged = false 且renderedElement存在时，会返回已存在的renderedElement，此时WrappedComponent不会被重新渲染 
+      if (!haveMergedPropsChanged && renderedElement) {
+        return renderedElement
+      }
+
+      // 创建新的renderedElement并返回
+      if (withRef) {
+        this.renderedElement = createElement(WrappedComponent, {
+          ...this.mergedProps,
+          ref: 'wrappedInstance'
+        })
+      } else {
+        this.renderedElement = createElement(WrappedComponent,
+          this.mergedProps
+        )
+      }
+      return this.renderedElement
+    }
+
+    // ...
+    return hoistStatics(Connect, WrappedComponent)
   }
   // ...
 }
@@ -132,3 +132,69 @@ export default function connect(mapStateToProps, mapDispatchToProps, mergeProps,
 通过这部分源码可知，Connect HOC在componentDidMount中通过store的subscribe方法来监听了store的改变，在handleChange回调中，首先判断store是否改变，如果store改变，通过setState方法来重新渲染Connect HOC。
 
 注意，在Connect HOC的render方法中，当haveMergedPropsChanged = false且renderedElement存在时，会返回已存在的renderedElement，此时WrappedComponent不会被重新渲染；否则会创建新的renderedElement并返回，此时会导致WrappedComponent重新渲染。
+
+### 3. mergeProps定义
+
+connect方法接收四个参数mapStateToProps、mapDispatchToProps、mergeProps和options，我们最熟悉、使用得最多的是前两个参数，当需要拿到WrappedComponent的引用是，我们会使用第四个参数options中的withRef属性，{ withRef: true }。对于第三个参数mergeProps接触得比较少(至少在我做过的项目中接触得比较少)，在解释mergeProps之前，需要知道Connect HOC主要处理哪几部分数据。
+
+Connect HOC主要处理三种类型的数据：stateProps、dispatchProps和ownProps。其中stateProps由mapStateToProps计算得到，dispatchProps由mapDispatchToProps计算得到，ownProps是父控件传递给Connect HOC的。
+
+根据react-redux文档，mergeProps的定义是：
+
+```JS
+[mergeProps(stateProps, dispatchProps, ownProps): props] (Function)
+```
+
+mergeProps将stateProps、dispatchProps和ownProps作为参数，并返回一个props，这个props暨是最终传递给WrappedComponent的props。如果没有为connect指定mergeProps，则默认使用Object.assign({}, ownProps, stateProps, dispatchProps)。在使用默认值的情况下，如果stateProps和ownProps中存在同名属性，stateProps中的对应值会覆盖ownProps中的值(注意：store中的属性会覆盖父组件传递给子组件的同名属性)。
+
+下面给出几个mergeProps的使用场景：
+
+```JS
+/*
+ * 当stateProps和dispatchProps的内部属性过多时(尤其是dispatchProps),
+ * 默认情况下，mergeProps会依次将这些属性复制到WrappedComponent的props中，
+ * 从而导致WrappedComponent的props过大，增大调试的复杂度。
+ * 
+ * mergeProps的这种实现可以有效地避免上述问题。
+ */ 
+function mergeProps (stateProps, dispatchProps, ownProps) {
+  return {
+    stateProps, dispatchProps, ownProps
+  }
+}
+
+/*
+ * 现假设有一个文章列表，列表中的任意一篇文章都含有id, abstract, creator等
+ * 信息。又因为某些原因，这些信息只存在于Component的state中，而没存到store中(
+ * 在Component中直接调接口，并将结果以setState方式保存)。当进入某篇文章详情时，
+ * 已存在于客户端的数据应立即展示出来，如creator。为达到这一目的，需要通过ownProps
+ * 来传递这些数据。
+ * 
+ * 在文章详情页面，会请求文章的详细数据，并存储到store中，然后通过mapStateToProps
+ * 从store获取文章相关数据。当接口返回之前，通常会使用一些默认值来替代真实值。因此，
+ * stateProps.creator可能是是默认值{id: undefined, avatar: undefined, ...}。
+ * 
+ * 又因为mergeProps在默认情况下，ownProps中同名属性会被stateProps中的值覆盖，暨
+ * 最终从WrappedComponent的props中取得的creator是未初始化的默认状态，也就不能在
+ * 进入文章详情后马上显示creator相关信息，即使文章列表中已存在相关的数据。
+ * 
+ * 利用mergeProps可以在一定程度上解决这个问题，下面是示例代码。
+ */
+function mergeProps (stateProps, dispatchProps, ownProps) {
+  if (stateProps.creator && ownProps.creator) {
+    if (!stateProps.creator.id) {
+      delete stateProps.creator
+    }
+  }
+  return Object.assign({}, ownProps, stateProps, dispatchProps)
+}
+
+/*
+ * 完全丢弃stateProps，dispatchProps和ownProps，并返回其他对象
+ */
+function mergeProps (stateProps, dispatchProps, ownProps) {
+  return { a: 1, b: 2, ... }
+}
+```
+
+> 也就是说要避免Redux中的state覆盖子组件的自己的props(来自父组件)，此时可以通过connect的第三参数mergeProps来避免覆盖情况发生。
