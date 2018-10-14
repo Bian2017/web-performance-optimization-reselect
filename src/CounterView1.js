@@ -19,12 +19,30 @@ class CounterView1 extends Component {
 }
 
 const DefaultDemoData = { counter: 0 }
+// 缓存上次运算的结果
+let lastCounter, lastResult
+
+const tonsOfCalculation = (counter) => {
+  if (lastCounter !== undefined && lastResult !== undefined && lastCounter === counter) {
+    // 参数未变，返回上次结果
+    return lastResult
+  }
+
+  lastCounter = counter
+  for (let i = 0; i < 1000000000; i++) {
+    counter *= i
+  }
+  lastResult = counter
+  return counter
+}
+
 const mapStateToProps = (state) => {
-  // 拷贝demo_A以避免直接修改store
   let demo_A = state.demo_A
   if (!demo_A.counter) {
     demo_A = DefaultDemoData
   }
+  demo_A.counter = tonsOfCalculation(demo_A.counter)
+
   // 考虑到实际应用场景的复杂性，可能还存在demoData_1, demoData_2 ...，故在此做了一层封装
   return { demoData: demo_A }
 }
