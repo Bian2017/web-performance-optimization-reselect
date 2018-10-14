@@ -3,7 +3,7 @@ Web性能优化：Reselect库
 
 ---
 
-本文非原创，文中大部分内容转载于[关于react, redux, react-redux和reselect的一些思考](https://zhuanlan.zhihu.com/p/33985606)。本项目是参照该文章进行了简单地工程化实践。
+本文非原创，文中大部分内容转载于[关于react, redux, react-redux和reselect的一些思考](https://zhuanlan.zhihu.com/p/33985606)。本项目是参照该文章进行了简单地工程化实践。
 
 ## 一、搭建环境
 
