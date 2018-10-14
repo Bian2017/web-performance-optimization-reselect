@@ -340,6 +340,53 @@ assert(thisStateProps.demoData !== nextStateProps.demoData)
 
 在updateStatePropsIfNeeded中，会将nextStateProps和thisStateProps做shallowEqual，因为thisStateProps.demoData !== nextStateProps.demoData，updateStatePropsIfNeeded会返回true，stateProps改变。
 
-综上所叙，当点击Button B时，会dispatch出DEMO_ACTION_B并改变store。组件A的Connect HOC的handleChange回调检测到store改变，并通过setState的方式让Connect HOC重新渲染。在Connect HOC的render方法中，因为this.stateProps.demoData !== nextStateProps.demoData，this.updateStatePropsIfNeeded返回true，表示stateProps发生了改变。又由我们在第四小点‘WrappedComponent在什么情况下会被重新渲染？’中得出的结论可知，当stateProps改变时，组件A会被重新渲染
+综上所叙，当点击Button B时，会dispatch出DEMO_ACTION_B并改变store。组件A的Connect HOC的handleChange回调检测到store改变，并通过setState的方式让Connect HOC重新渲染。在Connect HOC的render方法中，因为this.stateProps.demoData !== nextStateProps.demoData，this.updateStatePropsIfNeeded返回true，表示stateProps发生了改变。又由我们在第四小点“WrappedComponent在什么情况下会被重新渲染？”中得出的结论可知，当stateProps改变时，组件A会被重新渲染
 
-> 注：组件B的值发生变化，引起整个store发生变化。connect高阶组件监测到store变化，调用组件A的mapStateToProps，此时该函数会重新生成一个Object实例，connect高阶组件通过浅比较函数认为前后两个Object实例不等(引用地址不等)，从而重新渲染组价A。
+> 注：组件B的值发生变化，引起整个store发生变化。connect高阶组件监测到store变化，调用组件A的mapStateToProps，此时该函数会重新生成一个Object实例，connect高阶组件通过浅比较函数认为前后两个Object实例不等(引用地址不等)，从而重新渲染组价A。
+
+## 四、再思考：我们该如何写mapStateToProps？
+
+从上述分析可知，当点击Button B时，组件A之所以会被重新渲染，是因为每次调用mapStateToProps时，都会创建新的Object实例并赋给demo_A，这导致了updateStatePropsIfNeeded中的shallowEqual失败(对象引用地址不同)，stateProps改变，组件A重新渲染。
+
+### 1. 优化上述mapStateToProps写法
+
+先看下面这段代码：
+
+```JS
+let obj = { p1: { a: 1 }, p2: { b: 2 } }
+let obj2 = Object.assign({}, obj, { p3: { c: 3 } })
+assert(obj.p1 === obj2.p1)          // 输出值为true
+```
+
+由此可知，当DEMO_ACTION_B改变了store之后，有thisStore !== nextStore, 但是thisStore.demo_A === nextStore.demo_A，store中demo_A所指向的对象并没有发生改变。在上述mapStateToProps的实现中，最大的问题是每次调用mapStateToProps时，stateProps.demoData都会指向新的对象。如果直接将store.demo_A直接赋给stateProps.demoData呢？修改后的代码如下：
+
+```JS
+const mapStateToProps = (state) => {
+  let demo_A = state.demo_A
+  if (!demo_A.counter) {
+    demo_A = { counter: 0 }
+  }
+  return { demoData: demo_A }
+}
+```
+
+执行修改后代码(详见[daily/0.0.3](https://github.com/Bian2017/web-performance-optimization-reselect/commit/d66e64fa30de1d1dbc861809e1c1653995412464))，控制台输出如下：
+
+![]()
+
+由该控制台日志可知，当第一次点击Button A时，组件A和组件B都重新渲染了；随后点击Button B时，只有组件B重新渲染了，为什么？
+
+分析优化后的mapStateToProps可知，当第一次点击Button A时，store.demo_B是初始化时的默认值，因此会进入if (!demo_B.counter) { demo_B = { counter: 0 } }这一逻辑分支，在mapStateToProps中，我们每次都创建了新的默认值。再次优化mapStateToProps如下：
+
+```JS
+const DefaultDemoData = { counter: 0 }
+const mapStateToProps = (state) => {
+  let demo_A = state.demo_A
+  if (!demo_A.counter) {
+    demo_A = DefaultDemoData
+  }
+  return { demoData: demo_A }
+}
+```
+
+当点击Button 1或Button 2时，均只有对应的CounterView被重新渲染。
