@@ -197,4 +197,67 @@ function mergeProps (stateProps, dispatchProps, ownProps) {
 }
 ```
 
-> 个人注解：要避免Redux中的state覆盖子组件的props(来自父组件)，可以通过connect的第三参数mergeProps来避免上述情况发生。
+> 注：要避免Redux中的state覆盖子组件的props(来自父组件)，可以通过connect的第三参数mergeProps来避免上述情况发生。
+
+### 4. WrappedComponent在什么情况下会被重新渲染？
+
+由上述Connect HOC的render方法的片段可知，当haveMergedPropsChanged = true或renderedElement不存在时，WrappedComponent会重新渲染。其中renderedElement是对上一次调用createElement的结果的缓存，除第一次执行Connect HOC的render方法外，createElement一直有值(不考虑出错情况)。因此**WrappedComponent是否重新渲染由haveMergedPropsChanged的值决定**，即mergedProps是否改变。mergedProps改变，WrappedComponent重新渲染；反之则不重新渲染。
+
+> 注：mergedProps改变会引起WrappedComponent重新渲染。
+
+下面是Connect HOC的render方法中的部分逻辑：
+
+```JS
+render () {
+  const {
+    // ...
+    renderedElement
+  } = this
+
+  // ...
+  let haveStatePropsChanged = false
+  let haveDispatchPropsChanged = false
+  haveStatePropsChanged = this.updateStatePropsIfNeeded()
+  haveDispatchPropsChanged = this.updateDispatchPropsIfNeeded()
+
+  let haveMergedPropsChanged = true
+
+  // 当stateProps，dispatchProps和ownProps三者中任意一者改变时，便会去检测mergedProps是否改变。
+  if (
+    haveStatePropsChanged ||
+    haveDispatchPropsChanged ||
+    haveOwnPropsChanged
+  ) {
+    haveMergedPropsChanged = this.updateMergedPropsIfNeeded()
+  } else {
+    haveMergedPropsChanged = false
+  }
+
+  if (!haveMergedPropsChanged && renderedElement) {
+    return renderedElement
+  }
+
+  if (withRef) {
+    // ...
+  } else {
+    // ...
+  }
+}
+```
+
+上述代码中，当stateProps、dispatchProps和ownProps三者中任意一者改变时，便会去检测mergedProps是否改变。
+
+```JS
+// 检查mergeProps是否改变
+updateMergedPropsIfNeeded() {
+  const nextMergedProps = computeMergedProps(this.stateProps, this.dispatchProps, this.props)
+  if (this.mergedProps && checkMergedEquals && shallowEqual(nextMergedProps, this.mergedProps)) {
+    return false
+  }
+
+  this.mergedProps = nextMergedProps
+  return true
+}
+```
+
+当mergeProps为默认值时，通过简单的推导可知，stateProps、dispatchProps和ownProps三者中任意一者改变时，mergedProps也会改变，从而导致WrappedComponent的重新渲染。
