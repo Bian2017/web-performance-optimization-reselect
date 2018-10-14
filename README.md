@@ -587,6 +587,28 @@ function memoizeFeedById (state, lruMap, feedId) {
 
 上述代码，首先检测相关的依赖数据是否改变(feedIdList_1和id_1, id_2, id_3对应的FeedRecord)，如果没有改变且缓存存在，直接返回缓存的数据，界面不会重新渲染；如果发生了改变，重新计算并设置缓存，界面重新渲染。
 
-### 5. 介绍一个新的库：reselect
+### 5. 介绍一个新的库：reselect
 
 [reselect](https://github.com/reduxjs/reselect)利用上述思想，通过检测store中相关依赖数据是否改变，来避免mapStateToProps的重复计算，同时避免界面的不必要渲染。下面我们会着重讨论reselect的使用场景及其局限性。
+
+### 6. 还需要在WrappedComponent中使用shouldComponentUpdate吗？
+
+既然利用缓存的思想，可以在mapStateToProps中避免不必要的界面渲染，我们还需要在WrappedComponent中使用shouldComponentUpdate吗？前面我们有说到，connect HOC主要处理三种类型的数据stateProps，dispatchProps和ownProps，利用缓存的思想可以有效地避免由stateProps和dispatchProps引起的不必要渲染，那么当ownProps改变时会怎样呢？看下面的例子：
+
+```JS
+// src/app.js
+
+render () {
+  return (
+    <div>
+      <CounterView1 otherProps={{ a: 1 }}>
+    </div>
+  )
+}
+```
+
+在CounterView1的componentWillReceiveProps中，你会发现nextProps.otherProps !== this.props.otherProps，从而导致CounterView1重新渲染。这是因为src/app.js每次重新渲染时，都会构建一个新的otherProps对象并传递给CounterView1。此时，我们可以借助shouldComponentUpdate来避免此类由ownProps引起的不必要渲染。
+
+> 注意：父组件给子组件传递props对象时，每次都会构建一个新的对象，故会引起子组件的重新渲染。
+
+shouldComponentUpdate还有许多其他的应用场景，但这不属于本文考虑的范畴，故不再一一列举。
