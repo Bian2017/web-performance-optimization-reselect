@@ -40,7 +40,7 @@ class App extends Component {
         >
           Button B
         </button>
-        <CounterView1 />
+        <CounterView1 otherProps={{a: 1}} />
         <CounterView2 />
       </div>
     )

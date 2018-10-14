@@ -455,7 +455,7 @@ const mapStateToProps = (state, ownProps) => {
 
 虽然利用shouldComponentUpdate可以避免由store中无关数据的改变引起的重新渲染，但每次store改变时，所有的mapStateToProps都会被重新执行，这可能会导致一些性能上的问题。
 
-> mapStateToProps每次都重新执行，也会导致性能问题。
+> mapStateToProps每次都重新执行，也会导致性能问题。
 
 ### 2. 一个极端的例子
 
@@ -515,3 +515,78 @@ const mapStateToProps = (state) => {
 ```
 
 在tonsOfCalculation中，我们通过记录传入的counter值并将其与当前传入的counter做比较来判断输入是否改变，当counter改变时，重新计算并缓存结果；当counter不变且缓存值存在时，直接读取缓存值，从而有效地避免了不必要的耗时计算，详见[代码修改](https://github.com/Bian2017/web-performance-optimization-reselect/commit/e60be6972a8aa7724018ec8e4625a9eb66f942f8)。
+
+### 4. 将缓存的思想应用到mapStateToProps中
+
+借助缓存的思想，我们需要达到两个目的:
+
++ 当store中相关依赖数据没有发生改变时，直接从缓存中读取上一次构建的对象，避免重新渲染。例：当feedIdList_1和id_1, id_2, id_3对应的FeedRecord都没有改变，直接从缓存中读取feedList，避免构建新的对象；
++ 避免mapStateToProps中可能存在的耗时操作。例：当counter未改变时，直接读取缓存值；
+
+store中相关依赖数据：即mapStateToProps/selector为达到其特定的计算目的而需要从store中读取的数据，以我们的feedList_1为例，相关依赖数据分别是feedIdList_1，feedById.id_1，feedById.id_2和feedById.id_3。
+
+修改上述feed列表例子的代码如下：
+
+```JS
+// LRU: Least Recently Used(最近最少使用)
+const LRUMap = require('lru_map').LRUMap
+const lruMap = new LRUMap(500)
+
+const DefaultList = new List()
+const DefaultFeed = new FeedRecord()
+
+const mapStateToProps = (state, ownProps) => {
+  const hash = 'mapStateToProps'
+  let feedIdList = memoizeFeedIdListByKey(state, lruMap, 'feedIdList_1')
+  let hasChanged = feedIdList.hasChanged
+  if (!hasChanged) {
+    hasChanged = feedIdList.result.some((feedId) => {
+      return memoizeFeedById(state, lruMap, feed).hasChanged
+    })
+  }
+
+  if (!hasChanged && lruMap.has(hash)) {
+    return lruMap.get(hash)
+  }
+
+  let feedIds = feedIdList.result.toJS()
+  let feedList = feedIds((feedId) => {
+    return memoizeFeedById(state, lruMap, feed).result
+  })
+  // do some other time consuming calculations here
+  let result = {
+    feedList: feedList,
+    // other data
+  }
+  lruMap.set(hash, result)
+  return result
+}
+
+function memoizeFeedIdListByKey (state, lruMap, idListKey) {
+  const hash = `hasFeedIdListChanged:${idListKey}`
+  let cached = lruMap.get(hash)
+  let feedIds = state['reducerKey'][idListKey]
+  let hasChanged = feedIds && cached !== feedIds
+  if (hasChanged) {
+    lruMap.set(hash, feedIds)
+  }
+  return { hasChanged: hasChanged, result: feedIds || DefaultList }
+}
+
+function memoizeFeedById (state, lruMap, feedId) {
+  const hash = `hasFeedChanged:${feedId}`
+  let cached = lruMap.get(hash)
+  let feed = state['reducer_key'].getIn(['feedById', feedId])
+  let hasChanged = feed && cached !== feed
+  if (hasChanged) {
+    lruMap.set(hash, feed)
+  }
+  return { hasChanged: hasChanged, result: feed || DefaultFeed }
+}
+```
+
+上述代码，首先检测相关的依赖数据是否改变(feedIdList_1和id_1, id_2, id_3对应的FeedRecord)，如果没有改变且缓存存在，直接返回缓存的数据，界面不会重新渲染；如果发生了改变，重新计算并设置缓存，界面重新渲染。
+
+### 5. 介绍一个新的库：reselect
+
+[reselect](https://github.com/reduxjs/reselect)利用上述思想，通过检测store中相关依赖数据是否改变，来避免mapStateToProps的重复计算，同时避免界面的不必要渲染。下面我们会着重讨论reselect的使用场景及其局限性。

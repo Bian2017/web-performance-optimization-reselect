@@ -3,6 +3,10 @@ import { connect } from 'react-redux'
 import { bindActionCreators } from 'redux'
 
 class CounterView1 extends Component {
+  componentWillReceiveProps(nextProps) {
+    console.log('........组件A', nextProps.otherProps === this.props.otherProps)
+  }
+
   render() {
     console.log('......组件A props:', this.props)
 
@@ -29,7 +33,7 @@ const tonsOfCalculation = (counter) => {
   }
 
   lastCounter = counter
-  for (let i = 0; i < 1000000000; i++) {
+  for (let i = 1; i < 5; i++) {
     counter *= i
   }
   lastResult = counter
