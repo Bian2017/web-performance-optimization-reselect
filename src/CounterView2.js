@@ -19,9 +19,9 @@ class CounterView2 extends Component {
 }
 
 const mapStateToProps = (state) => {
-  let demo_B = Object.assign({}, state.demo_B)
+  let demo_B = state.demo_B
   if (!demo_B.counter) {
-    demo_B.counter = 0
+    demo_B = { counter: 0 }
   }
   return { demoData: demo_B }
 }
