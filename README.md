@@ -2,7 +2,7 @@ Reselect库
 
 ---
 
-本文章非原创，大部分参照[关于react, redux, react-redux和reselect的一些思考](https://zhuanlan.zhihu.com/p/33985606)文章来进行工程化实践。
+本文非原创，绝大部分参照[关于react, redux, react-redux和reselect的一些思考](https://zhuanlan.zhihu.com/p/33985606)文章来进行工程化实践。
 
 ## 一、搭建环境
 
@@ -42,15 +42,15 @@ Reselect库
 
 ## 三、Redux
 
-### 1. 简单回顾一下Redux相关知识
+### 1. 简单回顾一下Redux相关知识
 
-redux中有三个核心元素：store，reducer和action。其中store作为应用的唯一数据源，用于存储应用在某一时刻的状态数据；store是只读的，且只能通过action来改变，暨通过action将状态1下的store转换为状态2下的store；reducer用于定义状态转换的具体细节，并与action相对应；应用的UI部分可以通过store提供的**subscribe方法来监听store的改变**，当状态1下的store转换为状态2下的store时，所有通过subscribe方法注册的监听器(listener)都会被调用。
+redux中有三个核心元素：store、reducer和action。其中store作为应用的唯一数据源，用于存储应用在某一时刻的状态数据；store是只读的，且只能通过action来改变，即通过action将状态1下的store转换为状态2下的store；reducer用于定义状态转换的具体细节，并与action相对应；应用的UI部分可以通过store提供的**subscribe方法来监听store的改变**，当状态1下的store转换为状态2下的store时，所有通过subscribe方法注册的监听器(listener)都会被调用。
 
-### 2. connect返回的是一个监听了store改变的HOC
+### 2. connect返回的是一个监听store改变的HOC
 
 *注意：本文中所有react-redux源码片段均来自react-redux@4.4.6，下文中将不再重复强调。*
 
-下面是react-redux的部分源码：
+下面是react-redux的connect函数部分源码：
 
 ```JS
 export default function connect(mapStateToProps, mapDispatchToProps, mergeProps, options = {}) {
@@ -103,7 +103,7 @@ export default function connect(mapStateToProps, mapDispatchToProps, mergeProps,
     render() {
       const { renderedElement } = this
 
-      // haveMergedPropsChanged = false 且renderedElement存在时，会返回已存在的renderedElement，此时WrappedComponent不会被重新渲染 
+      // haveMergedPropsChanged = false 且renderedElement存在时，会返回已存在的renderedElement，此时WrappedComponent不会被重新渲染。 
       if (!haveMergedPropsChanged && renderedElement) {
         return renderedElement
       }
@@ -133,11 +133,11 @@ export default function connect(mapStateToProps, mapDispatchToProps, mergeProps,
 
 注意，在Connect HOC的render方法中，当haveMergedPropsChanged = false且renderedElement存在时，会返回已存在的renderedElement，此时WrappedComponent不会被重新渲染；否则会创建新的renderedElement并返回，此时会导致WrappedComponent重新渲染。
 
-### 3. mergeProps定义
+### 3. 参数mergeProps作用
 
-connect方法接收四个参数mapStateToProps、mapDispatchToProps、mergeProps和options，我们最熟悉、使用得最多的是前两个参数，当需要拿到WrappedComponent的引用是，我们会使用第四个参数options中的withRef属性，{ withRef: true }。对于第三个参数mergeProps接触得比较少(至少在我做过的项目中接触得比较少)，在解释mergeProps之前，需要知道Connect HOC主要处理哪几部分数据。
+connect方法接收四个参数mapStateToProps、mapDispatchToProps、mergeProps和options，我们最熟悉、使用最多的是前两个参数，当需要拿到WrappedComponent的引用时，我们会使用第四个参数options中的withRef属性，{ withRef: true }。对于第三个参数mergeProps接触得比较少(至少在我做过的项目中接触得比较少)，在解释mergeProps之前，需要知道Connect HOC主要处理哪几部分数据。
 
-Connect HOC主要处理三种类型的数据：stateProps、dispatchProps和ownProps。其中stateProps由mapStateToProps计算得到，dispatchProps由mapDispatchToProps计算得到，ownProps是父控件传递给Connect HOC的。
+Connect HOC主要处理三种类型的数据：stateProps、dispatchProps和ownProps。其中stateProps由mapStateToProps计算得到，dispatchProps由mapDispatchToProps计算得到，ownProps是**父控件传递给Connect HOC的**。
 
 根据react-redux文档，mergeProps的定义是：
 
@@ -145,7 +145,7 @@ Connect HOC主要处理三种类型的数据：stateProps、dispatchProps和ownP
 [mergeProps(stateProps, dispatchProps, ownProps): props] (Function)
 ```
 
-mergeProps将stateProps、dispatchProps和ownProps作为参数，并返回一个props，这个props暨是最终传递给WrappedComponent的props。如果没有为connect指定mergeProps，则默认使用Object.assign({}, ownProps, stateProps, dispatchProps)。在使用默认值的情况下，如果stateProps和ownProps中存在同名属性，stateProps中的对应值会覆盖ownProps中的值(注意：store中的属性会覆盖父组件传递给子组件的同名属性)。
+mergeProps将stateProps、dispatchProps和ownProps作为参数，并返回一个props，这个props暨是最终传递给WrappedComponent的props。如果没有为connect指定mergeProps，则默认使用Object.assign({}, ownProps, stateProps, dispatchProps)。在使用默认值的情况下，如果stateProps和ownProps中存在同名属性，stateProps中的对应值会覆盖ownProps中的值(注：stateProps中的属性会覆盖父组件传递给子组件的同名属性)。
 
 下面给出几个mergeProps的使用场景：
 
@@ -197,4 +197,4 @@ function mergeProps (stateProps, dispatchProps, ownProps) {
 }
 ```
 
-> 也就是说要避免Redux中的state覆盖子组件的自己的props(来自父组件)，此时可以通过connect的第三参数mergeProps来避免覆盖情况发生。
+> 个人注解：要避免Redux中的state覆盖子组件的props(来自父组件)，可以通过connect的第三参数mergeProps来避免上述情况发生。
