@@ -18,11 +18,12 @@ class CounterView1 extends Component {
   }
 }
 
+const DefaultDemoData = { counter: 0 }
 const mapStateToProps = (state) => {
   // 拷贝demo_A以避免直接修改store
   let demo_A = state.demo_A
   if (!demo_A.counter) {
-    demo_A = { counter: 0 }
+    demo_A = DefaultDemoData
   }
   // 考虑到实际应用场景的复杂性，可能还存在demoData_1, demoData_2 ...，故在此做了一层封装
   return { demoData: demo_A }

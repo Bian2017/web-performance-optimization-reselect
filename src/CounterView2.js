@@ -18,10 +18,11 @@ class CounterView2 extends Component {
   }
 }
 
+const DefaultDemoData = { counter: 0 }
 const mapStateToProps = (state) => {
   let demo_B = state.demo_B
   if (!demo_B.counter) {
-    demo_B = { counter: 0 }
+    demo_B = DefaultDemoData
   }
   return { demoData: demo_B }
 }

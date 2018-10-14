@@ -389,4 +389,4 @@ const mapStateToProps = (state) => {
 }
 ```
 
-当点击Button 1或Button 2时，均只有对应的CounterView被重新渲染。
+当点击Button A或Button B时，均只有对应的组件被重新渲染。
