@@ -261,3 +261,59 @@ updateMergedPropsIfNeeded() {
 ```
 
 当mergeProps为默认值时，通过简单的推导可知，stateProps、dispatchProps和ownProps三者中任意一者改变时，mergedProps也会改变，从而导致WrappedComponent的重新渲染。
+
+### 5. 如何判断ownProps是否改变？
+
+在Connect HOC中，在componentWillReceiveProps中判断ownProps是否改变，代码如下：
+
+```JS
+componentWillReceiveProps(nextProps) {
+  if (!pure || !shallowEqual(nextProps, this.props)) {
+    this.haveOwnPropsChanged = true
+  }
+}
+```
+
+> 注意：是在Connect高阶函数中判断ownProps(父组件传递的props)是否改变，不是在WrappedComponent组件中进行判断。
+
+其中pure为一可选配置，其值取自connect的第四个参数options，默认为true(关于pure的更多细节，请自行阅读react-redux源码，这里不做过多讨论)。
+
+```JS
+const { pure = true, withRef = false } = options
+```
+
+若pure为默认值，当父控件传递给Connect HOC的props改变时，ownProps改变。
+
+### 6. 如何判断stateProps和dispatchProps是否改变？以stateProps为例
+
+Connect HOC通过在render中调用updateStatePropsIfNeeded方法来判断stateProps是否改变：
+
+```JS
+updateStatePropsIfNeeded() {
+  const nextStateProps = this.computeStateProps(this.store, this.props)
+  if (this.stateProps && shallowEqual(nextStateProps, this.stateProps)) {
+    return false
+  }
+
+  this.stateProps = nextStateProps
+  return true
+}
+
+computeStateProps(store, props) {
+  if (!this.finalMapStateToProps) {
+    return this.configureFinalMapState(store, props)
+  }
+
+  const state = store.getState()
+  const stateProps = this.doStatePropsDependOnOwnProps ?
+    this.finalMapStateToProps(state, props) :
+    this.finalMapStateToProps(state)
+
+  if (process.env.NODE_ENV !== 'production') {
+    checkStateShape(stateProps, 'mapStateToProps')
+  }
+  return stateProps
+}
+```
+
+由此可知，Connect HOC是通过对this.stateProps和nextStateProps的shallowEqual(浅比较)来判断stateProps是否改变的。dispatchProps与stateProps类似，不再重复讨论。
