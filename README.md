@@ -609,6 +609,221 @@ render () {
 
 在CounterView1的componentWillReceiveProps中，你会发现nextProps.otherProps !== this.props.otherProps，从而导致CounterView1重新渲染。这是因为src/app.js每次重新渲染时，都会构建一个新的otherProps对象并传递给CounterView1。此时，我们可以借助shouldComponentUpdate来避免此类由ownProps引起的不必要渲染。
 
-> 注意：父组件给子组件传递props对象时，每次都会构建一个新的对象，故会引起子组件的重新渲染。
+> 注意：父组件给子组件传递props对象时，每次都会构建一个新的对象，故会引起子组件的重新渲染。
 
 shouldComponentUpdate还有许多其他的应用场景，但这不属于本文考虑的范畴，故不再一一列举。
+
+## 六、reselect
+
+reselect是基于下述三个原则来设计的：
+
++ selectors可以用来计算衍生数据(derived data)，从而允许Redux只存储最小的、可能的state；
++ selectors是高效的，一个selector只有在传给它的参数发生改变时，才重新计算；
++ selectors是可以组合的，它们可以被当作其他selector的输入；
+
+在上述第二个原则中，为保证selector的高效性，需要用到前文提到的缓存思想。
+
+*注意：以上三个原则均翻译自reselect文档，更多详情请查看[这里](https://github.com/reduxjs/reselect)*
+
+### 1. 如何使用reselect
+
+下面以feed列表的例子来展示如何使用reselect，部分store结构如下，为方便操作，这里使用了immutable：
+
+```JS
+{
+  feed: new Map({
+    feedIdList_1: new List([id_1, id_2, id_3]),
+    feedIdList_2: new List([id_1, id_4, id_5]),
+    feedById: new Map({
+      id_1: FeedRecord_1,
+      ...
+      id_5: FeedRecord_5
+    })
+  }),
+  ...
+}
+```
+
+以下是部分代码实现：
+
+```JS
+import { createSelector } from 'reselect'
+
+const getFeedById = state => state['feed'].get('feedById')
+const getFeedIds = (state, idListKey) => state['feed'].get(idListKey)
+
+const feedListSelectorCb = (feedIds, feedMap) => {
+  feedIds = feedIds.toJS ? feedIds.toJS() : feedIds
+  let feedList = feedIds.map((feedId) => {
+    return feedMap.get(feedId)
+  })
+}
+
+const feedListSelector = createSelector(getFeedIds, getFeedById, feedListSelectorCb)
+
+const mapStateToProps = (state, ownProps) => {
+  const idListKey = 'feedIdList_1'
+  let feedList = feedListSelector(state, idListKey)
+  return {
+    feedList: feedList,
+    // other data
+  }
+}
+```
+
+这里，我们利用reselect提供的createSelector方法，创造出了feedListSelector，并在mapStateToProps中调用feedListSelector来计算feedList。feedListSelector的相关依赖数据是feedById和feedIdList_1，当这两者中任意一个发生改变时，reselect内部机制会判断出这个改变，并调用feedListSelectorCb重新计算新的feedList。稍后我们会详细讨论reselect这一内部机制。
+
+相比之前利用lruMap实现的feed列表，这段代码简洁了许多，但上述代码存在一个问题。
+
+#### 1.1 上述代码存在因store中无关数据改变而导致界面重新渲染的问题
+
+上述feedListSelector的相关依赖数据是feedById和feedIdList_1，通过观察store的结构可知，feedById中存在与feedList_1无关的数据。也就是说，为了计算出feedList_1，feedListSelector依赖了与feedList_1无关的数据，即FeedRecord_4和FeedRecord_5。当FeedRecord_5发生改变时，feedById也随之改变，导致feedListSelectorCb会被重新调用并返回一个新的feedList。由上文的讨论可知，当在mapStateToProps中创建新的对象时，会导致界面的重新渲染。
+
+在FeedRecord_5改变前和改变后的两个feedList_1中，虽然feedList_1中的每个元素都没有发生改变，但feedList_1本身发生了改变(两个不同的对象)，最后导致界面渲染，这是典型的因store中无关数据改变而引起界面渲染的例子。
+
+#### 1.2 一个更复杂的例子
+
+在实际应用中，一个feed还存在创建者属性，同时creator作为一个用户，还可能存在所属组织机构等信息，部分store结构如下：
+
+```JS
+{
+  feed: {
+    feedIdList_1: new List([feedId_1, feedId_2, feedId_3]),
+    feedIdList_2: new List([feedId_1, feedId_4, feedId_5]),
+    feedById: new Map({
+      feedId_1: new FeedRecord({
+        id: feedId_1,
+        creator: userId_1,
+        ...
+      }),
+      ...
+      feedId_5: FeedRecord_5
+    })
+  },
+  user: {
+    userIdList_1: new List([userId_2, userId_3, userId_4])
+    userById: new Map({
+      userId_1: new UserRecord({
+        id: userId_1,
+        organization: organId_1,
+        ...
+      }),
+      ...
+      userId_3: UserRecord_3
+    })
+  },
+  organization: {
+    organById: new Map({
+      organId_1: new OrganRecord({
+        id: organId_1,
+        name: 'Facebook Inc.',
+        ...
+      }),
+      ...
+    })
+  }
+}
+```
+
+上述store主要由feed, user和organization三部分组成，它们分别由不同的reducer来更新其内部数据。在渲染feedList_1时，每条feed都需要展示创建者以及创建者所属组织等信息。为达到这个目的，我们的feedListSelector需要做如下更改。
+
+```JS
+import { createSelector } from 'reselect'
+
+const getFeedById = state => state['feed'].get('feedById')
+const getUserById = state => state['user'].get('userById')
+const getOrganById = state => state['organization'].get('organById')
+const getFeedIds = (state, idListKey) => state['feed'].get(idListKey)
+
+const feedListSelectorCb = (feedIds, feedMap, userMap, organMap) => {
+  feedIds = feedIds.toJS ? feedIds.toJS() : feedIds
+  let feedList = feedIds.map((feedId) => {
+    let feed = feedMap.get(feedId)
+    let creator = userMap.get(feed.creator)
+    let organization = organMap.get(creator.organization)
+
+    feed = feed.set('creator', creator)
+    feed = feed.setIn(['creator', 'organization'], organization)
+    return feed
+  })
+}
+const feedListSelector = createSelector(
+  getFeedIds,
+  getFeedById,
+  getUserById,
+  getOrganById
+  feedListSelectorCb
+)
+
+const mapStateToProps = (state, ownProps) => {
+  const idListKey = 'feedIdList_1'
+  let feedList = feedListSelector(state, idListKey)
+  return {
+    feedList: feedList,
+    // other data
+  }
+}
+```
+
+上述代码中，feedListSelector的相关依赖数据是feedIdList_1，feedById，userById和organById。相对于之前简单的feed列表的例子，这里多了userById和organById这两个依赖。此时会有一个有趣的现象：当我们从服务器端请求userList_1的数据并存入store中时，会导致feedList_1的重新渲染，因为userById改变了。从性能的角度考虑，这不是我们期望的结果。
+
+#### 1.3 能否通过改变store的结构来解决上述问题呢？
+
+出现上述问题的最主要原因是feedListSelector的相关依赖数据feedById，userById等中含有与feedList_1无关的数据。那么我们能不能将相关数据存储在一起，这样feedListSelector就不会依赖无关数据了。
+
+以上文提到的简单的feed列表为例，其修改后的store结构如下：
+
+```JS
+{
+  feed: new Map({
+    feedList_1: new Map({
+      idList: new List([id_1, id_2, id_3]),
+      feedById: new Map({
+        id_1: FeedRecord_1,
+        id_2: FeedRecord_2,
+        id_3: FeedRecord_3
+      })
+    }),
+    feedList_2: new Map({
+      idList: new List([id_1, id_4, id_5]),
+      feedById: new Map({
+        id_1: FeedRecord_1,
+        id_4: FeedRecord_4,
+        id_5: FeedRecord_5
+      })
+    })
+  }),
+  ...
+}
+```
+
+这里，每个feedList拥有属于自己的idList和feedById，在渲染feedList_1时，feedListSelector之需要依赖feedList_1这一处数据了，修改后的获取feedList的代码如下：
+
+```JS
+import { createSelector } from 'reselect'
+
+const getFeedList = (state, feedListKey) => state['feed'].get(feedListKey)
+
+const feedListSelectorCb = (feedListMap) => {
+  let feedMap = feedListMap.get('feedById')
+  let feedIds = feedListMap.get('idList').toJS()
+  let feedList = feedIds.map((feedId) => {
+    return feedMap.get(feedId)
+  })
+}
+const feedListSelector = createSelector(getFeedList, feedListSelectorCb)
+
+const mapStateToProps = (state, ownProps) => {
+  const feedListKey = 'feedList_1'
+  let feedList = feedListSelector(state, feedListKey)
+  return {
+    feedList: feedList,
+    // other data
+  }
+}
+```
+
+因为我们的feedListSelector不再依赖无关数据，当id_4或id_5对应的FeedRecord发生改变时，不会再引起feedList_1的重新渲染。但时，这种store结构存在以下问题：
+
++ store中存在重复的数据，id_1对应的FeedRecord同时存在于feedList_1和feedList_2中，可能会出现较大的数据冗余；
++ 当feedList_2中id_1对应的FeedRecord发生改变时，feedList_1也不会重新渲染，暨相关数据改变不引起界面渲染的问题；
