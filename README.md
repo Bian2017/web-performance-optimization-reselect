@@ -344,7 +344,7 @@ assert(thisStateProps.demoData !== nextStateProps.demoData)
 
 > 注：组件B的值发生变化，引起整个store发生变化。connect高阶组件监测到store变化，调用组件A的mapStateToProps，此时该函数会重新生成一个Object实例，connect高阶组件通过浅比较函数认为前后两个Object实例不等(引用地址不等)，从而重新渲染组价A。
 
-## 四、再思考：我们该如何写mapStateToProps？
+## 四、再思考：我们该如何写mapStateToProps？
 
 从上述分析可知，当点击Button B时，组件A之所以会被重新渲染，是因为每次调用mapStateToProps时，都会创建新的Object实例并赋给demo_A，这导致了updateStatePropsIfNeeded中的shallowEqual失败(对象引用地址不同)，stateProps改变，组件A重新渲染。
 
