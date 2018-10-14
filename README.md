@@ -827,3 +827,86 @@ const mapStateToProps = (state, ownProps) => {
 
 + store中存在重复的数据，id_1对应的FeedRecord同时存在于feedList_1和feedList_2中，可能会出现较大的数据冗余；
 + 当feedList_2中id_1对应的FeedRecord发生改变时，feedList_1也不会重新渲染，暨相关数据改变不引起界面渲染的问题；
+
+### 2. 我们该如何定义我们的数据模型: 'Normalized Data Model' vs 'Embedded Data Model'
+
+上文中在分析简单的feed列表时，提到了两种数据模型。第一种是Normalized Data Model，该模型与reselect一起使用时，会导致'因store中无关数据的改变而引起不必要的界面渲染' 的问题；第二种是Embedded Data Model，该模型与reselect一起使用时，存在'store中相关数据改变不引起界面渲染'的问题。那么我们该如何定义store中的数据模型呢？
+
+#### 2.1 介绍两个概念：store model和display model，以及一些通用做法
+
+使用Redux时，我们需要处理的数据主要分为两部分：体现应用全局状态的store部分数据和用于渲染特定界面而计算出的衍生数据。这两部分数据一般采用不同的数据模型：
+
++ store model: store中存储数据时采用的数据模型，一般为Normalized Data Model；
++ display model: 渲染界面时需要的数据模型，一般为Embedded Data Model；
+
+**我们通过mapStateToProps和selector将store中Normalized的数据转换成界面需要的Embedded类型数据**。
+
+#### 2.2 简单分析一下Normalized和Embedded两种数据模型的优缺点
+
+一个Normalized Data Model的例子：
+
+```JS
+{
+  feedList: [feedId_1, feedId_2, feedId_3, ...],
+  feedById: {
+    feedId_1: {
+      id: feedId_1,
+      title: 'Feed Title',
+      content: 'Feed Content',
+      creator: userId_1
+    },
+    feedId_2: { ... },
+    ...
+  },
+  userList: [userId_1, userId_2, ...],
+  userById: {
+    userId_1: {
+      id: userId_1 , nickname: 'nickname', avatar: 'avatar.png', ...
+    },
+    ...
+  }
+}
+```
+
+一个Embedded Data Model的例子：
+
+```JS
+{
+  feedList: [
+    {
+      id: feedId_1,
+      title: 'Feed Title',
+      content: 'Feed Content',
+      creator: {
+        id: userId_1 , nickname: 'nickname', avatar: 'avatar.png', ...
+      },
+      ...
+    },
+    ...
+  ],
+  userList: [
+    {
+      id: userId_1 , nickname: 'nickname', avatar: 'avatar.png', ...
+    },
+    ...
+  ]
+}
+```
+
+Normalized Data Model:
+
++ 优点: 通过id来关联数据，数据的存储是扁平化的，无数据冗余，数据一致性高且更新操作比较简单；
++ 缺点: 为了渲染相关数据，需要de-normalized，暨将数据转换成适合UI渲染的Embedded结构的数据，当数据量较大时，这个过程可能比较耗时；还可能因为前文提到的创建新对象的问题，引起不必要的界面渲染；
+
+Embedded Data Model:
+
++ 优点: 渲染数据的效率较高
++ 缺点: 数据是嵌套的，存在较大的数据冗余，为了保证数据的一致性，需要复杂(有时可能是低效)的数据更新逻辑。例如，当userId_1的avatar发生改变时，在Normalized Data Model结构中，只需要根据对应的id在userById中找到UserRecord，然后更新其avatar值即可。而在Embedded Data Model中，需要分别遍历feedList和userList，找到对应的UserRecord，然后进行更新操作。
+
+更多关于Normalized Data Model与Embedded Data Model的讨论，请参考[Data Model Design](https://docs.mongodb.com/manual/core/data-model-design/)。Git上一些相关这两种模型的讨论与资料(react，redux体系下):
+
++ [How to handle case where the store "model" differs from the "display" model](https://github.com/este/este/issues/519)
++ [Memoizing Hierarchial Selector](https://github.com/reduxjs/reselect/issues/47)
++ [Performance Issue with Hierarchical Structure](https://github.com/reduxjs/redux/issues/764)
++ [TreeView.js](https://gist.github.com/ronag/bc8b9a33da172520e123)
++ [normalizr](https://github.com/paularmstrong/normalizr)
