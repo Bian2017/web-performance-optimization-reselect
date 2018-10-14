@@ -372,7 +372,7 @@ const mapStateToProps = (state) => {
 
 执行修改后代码(详见[daily/0.0.3](https://github.com/Bian2017/web-performance-optimization-reselect/commit/d66e64fa30de1d1dbc861809e1c1653995412464))，控制台输出如下：
 
-![]()
+![](https://raw.githubusercontent.com/Bian2017/web-performance-optimization-reselect/master/docs/img/fixA.png)
 
 由该控制台日志可知，当第一次点击Button A时，组件A和组件B都重新渲染了；随后点击Button B时，只有组件B重新渲染了，为什么？
 
