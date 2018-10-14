@@ -38,9 +38,7 @@ Reselect库
 
 ![](https://raw.githubusercontent.com/Bian2017/web-performance-optimization-reselect/daily/0.0.1/docs/img/stillRender.png)
 
-**思考：为什么store中不相关的数据的改变会引起界面的重新渲染？**
-
-## 三、Redux
+## 三、思考：为什么store中不相关的数据的改变会引起界面的重新渲染？
 
 ### 1. 简单回顾一下Redux相关知识
 
@@ -248,7 +246,7 @@ render () {
 上述代码中，当stateProps、dispatchProps和ownProps三者中任意一者改变时，便会去检测mergedProps是否改变。
 
 ```JS
-// 检查mergeProps是否改变
+// 检查mergeProps是否改变
 updateMergedPropsIfNeeded() {
   const nextMergedProps = computeMergedProps(this.stateProps, this.dispatchProps, this.props)
   if (this.mergedProps && checkMergedEquals && shallowEqual(nextMergedProps, this.mergedProps)) {
@@ -317,3 +315,31 @@ computeStateProps(store, props) {
 ```
 
 由此可知，Connect HOC是通过对this.stateProps和nextStateProps的shallowEqual(浅比较)来判断stateProps是否改变的。dispatchProps与stateProps类似，不再重复讨论。
+
+### 7. 回答问题：为什么store中不相关的数据的改变会引起界面的重新渲染？
+
+首先我们再看一下上述例子中mapStateToProps的实现:
+
+```JS
+const mapStateToProps = (state) => {
+  let demo_A = Object.assign({}, state.demo_A)
+  if (!demo_A.counter) {
+    demo_A.counter = 0
+  }
+  return { demoData: demo_A }
+} 
+```
+
+注意这一句let demo_A = Object.assign({}, state.demo_A)，每次调用mapStateToProps，都会创建一个新的Object实例并赋值给demo_A。当连续调用两次mapStateToProps，则有：
+
+```JS
+let thisStateProps = mapStateToProps(state)
+let nextStateProps = mapStateToProps(state)
+assert(thisStateProps.demoData !== nextStateProps.demoData)
+```
+
+在updateStatePropsIfNeeded中，会将nextStateProps和thisStateProps做shallowEqual，因为thisStateProps.demoData !== nextStateProps.demoData，updateStatePropsIfNeeded会返回true，stateProps改变。
+
+综上所叙，当点击Button B时，会dispatch出DEMO_ACTION_B并改变store。组件A的Connect HOC的handleChange回调检测到store改变，并通过setState的方式让Connect HOC重新渲染。在Connect HOC的render方法中，因为this.stateProps.demoData !== nextStateProps.demoData，this.updateStatePropsIfNeeded返回true，表示stateProps发生了改变。又由我们在第四小点‘WrappedComponent在什么情况下会被重新渲染？’中得出的结论可知，当stateProps改变时，组件A会被重新渲染
+
+> 注：组件B的值发生变化，引起整个store发生变化。connect高阶组件监测到store变化，调用组件A的mapStateToProps，此时该函数会重新生成一个Object实例，connect高阶组件通过浅比较函数认为前后两个Object实例不等(引用地址不等)，从而重新渲染组价A。
