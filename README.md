@@ -390,3 +390,59 @@ const mapStateToProps = (state) => {
 ```
 
 当点击Button A或Button B时，均只有对应的组件被重新渲染。
+
+### 2. 尝试归纳一些基本原则
+
++ 不要在mapStateToProps构建**新的对象**，直接使用store中对应的对象；
++ 提供全局的默认值，以使每次返回的默认值都指向同一个对象
+
+使用immutable时的一个常见的错误写法：
+
+```JS
+let immutableRecord = state['reducer_key'].immutableRecord || DefaultImmutableRecord
+immutableRecord = immutableRecord.toJS()
+```
+
+每次调用toJS()方法时，都会生成新的对象，从而导致stateProps的改变，重新渲染界面。
+
+### 3. 我们无法避免在mapStateToProps中构建新的对象
+
+现假设有如下store结构，为了方便操作，此处会使用immutable：
+
+```JS
+new Map({
+  feedIdList_1: new List([id_1, id_2, id_3]),
+  feedIdList_2: new List([id_1, id_4, id_5]),
+  feedById: new Map({
+    id_1: FeedRecord_1,
+    ...
+    id_5: FeedRecord_5
+  })
+})
+```
+
+为了在界面上渲染一个feed列表，例如feedIdList_1，我们会将这个feed列表connect到store上，然后在mapStateToProps中构建出一个feed数组，数组中的每个元素对应一条feed，mapStateToProps部分代码如下：
+
+```JS
+const DefaultList = new List()
+const mapStateToProps = (state, ownProps) => {
+  let feedIdList = state['reducer_key'].feedIdList_1 || DefaultList
+  // 因react无法渲染immutable list，故需要转换为数组
+  feedIdList = feedIdList.toJS()
+
+  let feedList = feedIdList.map((feedId) => {
+    return state['reducer_key'].getIn(['feedById', feedId])
+  })
+
+  return {
+    feedList: feedList,
+    // other data
+  }
+}
+```
+
+> 注：react无法渲染immutable list，故需要转换为数组。 
+
+在上述mapStateToProps的实现中，每次调用mapStateToProps都会创建一个新的feedList对象，由上述的讨论可知，即使feedIdList_1和id_1, id_2, id_3对应的FeedRecord都没有改变，当store其他部分改变时，也会引起该feed列表的重新渲染。
+
+*注意：当需要在界面上渲染一个列表时，我们一般会选择将这个列表connect到store上，而不是将列表的每个元素分别connect到store上，更多关于在什么地方使用connect，请参考[redux/issues/815](https://github.com/reduxjs/redux/issues/815), [redux/issues/1255](https://github.com/reduxjs/redux/issues/1255)和[At what nesting level should components read entities from Stores in Flux?](https://stackoverflow.com/questions/25701168/at-what-nesting-level-should-components-read-entities-from-stores-in-flux/25701169#25701169)*
