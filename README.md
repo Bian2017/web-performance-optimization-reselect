@@ -446,3 +446,72 @@ const mapStateToProps = (state, ownProps) => {
 在上述mapStateToProps的实现中，每次调用mapStateToProps都会创建一个新的feedList对象，由上述的讨论可知，即使feedIdList_1和id_1, id_2, id_3对应的FeedRecord都没有改变，当store其他部分改变时，也会引起该feed列表的重新渲染。
 
 *注意：当需要在界面上渲染一个列表时，我们一般会选择将这个列表connect到store上，而不是将列表的每个元素分别connect到store上，更多关于在什么地方使用connect，请参考[redux/issues/815](https://github.com/reduxjs/redux/issues/815), [redux/issues/1255](https://github.com/reduxjs/redux/issues/1255)和[At what nesting level should components read entities from Stores in Flux?](https://stackoverflow.com/questions/25701168/at-what-nesting-level-should-components-read-entities-from-stores-in-flux/25701169#25701169)*
+
+## 五、再再思考：我们该如何避免由store中无关数据的改变引起的重新渲染？
+
+### 1. shouldComponentUpdate
+
+首先我们会想到利用shouldComponentUpdate，通过比较this.state，this.props和nextState，nextProps，判断state和props都是否改变(使用deepEqual，shallowEqual或其他方法)，从而决定界面是否重新渲染。
+
+虽然利用shouldComponentUpdate可以避免由store中无关数据的改变引起的重新渲染，但每次store改变时，所有的mapStateToProps都会被重新执行，这可能会导致一些性能上的问题。
+
+> mapStateToProps每次都重新执行，也会导致性能问题。
+
+### 2. 一个极端的例子
+
+```JS
+const DefaultDemoData = { counter: 0 }
+const mapStateToProps = (state, ownProps) => {
+  let demo_A = state.demo_A
+  if (!demo_A.counter) {
+    demo_A = DefaultDemoData
+  }
+
+  // tons of calculation here, for example:
+  let counter = demo_A.counter
+  for (let i = 0, i < 1000000000000; i++) {
+    counter *= i
+  }
+  demo_A.counter = counter
+
+  return { demoData: demo_A }
+}
+```
+
+在这个极端的例子中，mapStateToProps有一段非常耗时的计算。虽然shouldComponentUpdate可以有效地避免重新渲染，我们该如何有效地避免这段复杂的计算呢？
+
+### 3. 一个新的想法
+
+redux充分利用了纯函数的思想，我们的mapStateToProps其本身也是一个纯函数。纯函数的特点是当输入不变时，多次执行同一个纯函数，其返回结果不变。既然在demo_A.counter的值未改变的情况下，每次执行完这段耗时操作的返回值都相同，我们能不能将这个结果缓存起来，当demo_A.counter没有发生改变时，直接去读取这个缓存值呢？修改上述代码如下：
+
+```JS
+const DefaultDemoData = { counter: 0 }
+// 缓存上次运算的结果
+let lastCounter, lastResult
+
+const tonsOfCalculation = (counter) => {
+  if (lastCounter !== undefined && lastResult !== undefined && lastCounter === counter) {
+    // 参数未变，返回上次结果
+    return lastResult
+  }
+
+  lastCounter = counter
+  for (let i = 0; i < 1000000000; i++) {
+    counter *= i
+  }
+  lastResult = counter
+  return counter
+}
+
+const mapStateToProps = (state) => {
+  let demo_A = state.demo_A
+  if (!demo_A.counter) {
+    demo_A = DefaultDemoData
+  }
+  demo_A.counter = tonsOfCalculation(demo_A.counter)
+
+  return { demoData: demo_A }
+}
+```
+
+在tonsOfCalculation中，我们通过记录传入的counter值并将其与当前传入的counter做比较来判断输入是否改变，当counter改变时，重新计算并缓存结果；当counter不变且缓存值存在时，直接读取缓存值，从而有效地避免了不必要的耗时计算，详见[代码修改](https://github.com/Bian2017/web-performance-optimization-reselect/commit/e60be6972a8aa7724018ec8e4625a9eb66f942f8)。
